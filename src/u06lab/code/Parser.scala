@@ -30,8 +30,12 @@ class NonEmptyParser(chars: Set[Char]) extends BasicParser(chars) with NonEmpty[
 
 trait NotTwoConsecutive[T] extends Parser[T] {
   private[this] var consecutive = false
-  private var prev: T = _
-  abstract override def parse(t: T): Boolean = { if (t == prev) consecutive = true; prev = t; super.parse(t) }
+  private var prev: Option[T] = None
+
+  abstract override def parse(t: T): Boolean = prev match {
+    case Some(p) if p == t => consecutive = true; super.parse(t)
+    case _ => prev = Some(t); super.parse(t)
+  }
   abstract override def end(): Boolean = !consecutive && super.end()
 }
 
@@ -41,9 +45,7 @@ class NotTwoConsecutiveParser(chars: Set[Char]) extends BasicParser(chars) with 
 object TryParsers extends App {
 
   implicit class RichString(base: String) {
-    def charParser(): Parser[Char] = {
-      new BasicParser(base.toSet)
-    }
+    def charParser(): Parser[Char] = new BasicParser(base.toSet)
   }
 
   def parser = new BasicParser(Set('a','b','c'))
@@ -74,5 +76,3 @@ object TryParsers extends App {
   println(sparser.parseAll("aabcdc".toList)) // false
   println(sparser.parseAll("".toList)) // true
 }
-
-
