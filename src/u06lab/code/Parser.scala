@@ -12,7 +12,7 @@ package u06lab.code
 abstract class Parser[T] {
   def parse(t: T): Boolean  // is the token accepted?
   def end(): Boolean        // is it ok to end here
-  def parseAll(seq: Seq[T]): Boolean = (seq forall {parse(_)}) & end() // note &, not &&
+  def parseAll(seq: Seq[T]): Boolean = (seq forall parse) & end() // note &, not &&
 }
 
 class BasicParser(chars: Set[Char]) extends Parser[Char] {
@@ -22,20 +22,30 @@ class BasicParser(chars: Set[Char]) extends Parser[Char] {
 
 trait NonEmpty[T] extends Parser[T]{
   private[this] var empty = true
-  abstract override def parse(t: T) = {empty = false; super.parse(t)} // who is super??
-  abstract override def end() = !empty && {empty = true; super.end()}
+  abstract override def parse(t: T): Boolean = {empty = false; super.parse(t)} // who is super??
+  abstract override def end(): Boolean = !empty && {empty = true; super.end()}
 }
 
 class NonEmptyParser(chars: Set[Char]) extends BasicParser(chars) with NonEmpty[Char]
 
-trait NotTwoConsecutive[T] extends Parser[T]{
-  // ???
+trait NotTwoConsecutive[T] extends Parser[T] {
+  private[this] var consecutive = false
+  private var prev: T = _
+  abstract override def parse(t: T): Boolean = { if (t == prev) consecutive = true; prev = t; super.parse(t) }
+  abstract override def end(): Boolean = !consecutive && super.end()
 }
 
-class NotTwoConsecutiveParser(chars: Set[Char]) extends BasicParser(chars) // ??? with ...
+class NotTwoConsecutiveParser(chars: Set[Char]) extends BasicParser(chars) with NotTwoConsecutive[Char]
 
 
 object TryParsers extends App {
+
+  implicit class RichString(base: String) {
+    def charParser(): Parser[Char] = {
+      new BasicParser(base.toSet)
+    }
+  }
+
   def parser = new BasicParser(Set('a','b','c'))
   println(parser.parseAll("aabc".toList)) // true
   println(parser.parseAll("aabcdc".toList)) // false
@@ -59,7 +69,7 @@ object TryParsers extends App {
   println(parserNTCNE.parseAll("XYYZ".toList)) // false
   println(parserNTCNE.parseAll("".toList)) // false
 
-  def sparser : Parser[Char] = ??? // "abc".charParser()
+  def sparser : Parser[Char] = "abc".charParser()
   println(sparser.parseAll("aabc".toList)) // true
   println(sparser.parseAll("aabcdc".toList)) // false
   println(sparser.parseAll("".toList)) // true
