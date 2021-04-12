@@ -13,11 +13,33 @@ trait Functions {
 
 object FunctionsImpl extends Functions {
 
-  override def sum(a: List[Double]): Double = ???
+  implicit private val doubleSum: Combiner[Double] = new Combiner[Double] {
+    override def unit: Double = 0
+    override def combine(a: Double, b: Double): Double = a + b
+  }
 
-  override def concat(a: Seq[String]): String = ???
+  implicit private val stringConcat: Combiner[String] = new Combiner[String] {
+    override def unit: String = ""
+    override def combine(a: String, b: String): String = a + b
+  }
 
-  override def max(a: List[Int]): Int = ???
+  implicit private val intMax: Combiner[Int] = new Combiner[Int] {
+    override def unit: Int = Int.MinValue
+    override def combine(a: Int, b: Int): Int = if (a > b) a else b
+  }
+
+  override def sum(a: List[Double]): Double = combine(a)
+
+  override def concat(a: Seq[String]): String = combine(a)
+
+  override def max(a: List[Int]): Int = combine(a)
+
+  private def combine[A](collection: Seq[A])(implicit combiner: Combiner[A]): A = {
+    if (collection.isEmpty) combiner.unit
+    var collector: A = combiner.unit
+    collection.foreach(e => collector = combiner.combine(collector, e))
+    collector
+  }
 }
 
 
@@ -39,7 +61,7 @@ trait Combiner[A] {
   def combine(a: A, b: A): A
 }
 
-object TryFunctions extends App {
+object TryFunctionsComb extends App {
   val f: Functions = FunctionsImpl
   println(f.sum(List(10.0,20.0,30.1))) // 60.1
   println(f.sum(List()))                // 0.0
